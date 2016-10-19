@@ -2,10 +2,13 @@
 #include "libs/qdbmp.h"
 #include "libs/qdbmp.c"
 #include <omp.h>
+#include <time.h>
+
 #define FILTER_SIZE 3
 #define BLUR 0
 #define SHARPEN 1
 #define MOTION_BLUR 2
+
 // Kernel Matrix
 //int filter[7][7] = { { 0, 0, 0, 0, 0, 0, 0 },
 //                     { 0, 0, 0, 0, 0, 0, 0 },
@@ -50,6 +53,9 @@ int main(int argc, char * argv[])
     int norm_factor;
     int F_TYPE ;
 
+    clock_t start, end;
+    double time_taken;
+
     if( argc != 3 )
     {
         printf("\n Usage: %s <input file> <filter type> ", argv[0]);
@@ -66,13 +72,28 @@ int main(int argc, char * argv[])
     printf("\n Width = %d, Height = %d", width, height);
     printf("\n Filter applied : %d", F_TYPE);
 
+    start = clock();
 
+
+    #pragma omp parallel for default(shared) \
+                             collapse(2)     \
+                             num_threads(4)  \
+                             private(gtot,rtot,btot,norm_factor)
     for(int i=0; i<width; i++)
     {
         for(int j=0; j < height; j++)
         {
             rtot = gtot = btot = 0;
             norm_factor=FILTER_SIZE*FILTER_SIZE;
+            
+            #pragma omp parallel for reduction(+:rtot), \
+                                     reduction(+:btot), \
+                                     reduction(+:gtot)  \
+                                     collapse(2)        \
+                                     default(shared)    \
+                                     num_threads(FILTER_SIZE)\
+                                     private(r,g,b)     
+                                
             for(int k=-(FILTER_SIZE/2); k<=(FILTER_SIZE/2); k++)
             {
                 for(int l=-(FILTER_SIZE/2);l<=(FILTER_SIZE/2); l++)
@@ -113,6 +134,11 @@ int main(int argc, char * argv[])
 
         }
     }
+
+    end = clock();
+    time_taken = ((double) (end-start))/ CLOCKS_PER_SEC;
+    printf("\nThe time taken is %f", time_taken);
+    
     BMP_WriteFile(bmp2, "output.bmp");
     BMP_CHECK_ERROR(stderr, -2);
 
