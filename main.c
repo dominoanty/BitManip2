@@ -1,133 +1,62 @@
 #include <stdio.h>
+#include <string.h>
 #include "libs/qdbmp.h"
 #include "libs/qdbmp.c"
-#include <omp.h>
-#define FILTER_SIZE 3
-#define BLUR 0
-#define SHARPEN 1
-#define MOTION_BLUR 2
-// Kernel Matrix
-//int filter[7][7] = { { 0, 0, 0, 0, 0, 0, 0 },
-//                     { 0, 0, 0, 0, 0, 0, 0 },
-//                     { 0, 0, 0, -1, 0, 0, 0 },
-//                     { 0, 0, -1, 5, -1, 0, 0 },
-//                     { 0, 0, 0, -1, 0, 0, 0 },
-//                     { 0, 0, 0, 0, 0, 0, 0 },
-//                     { 0, 0, 0, 0, 0, 0, 0 } };
+#include "filter.c"
+#include "resize.c"
 
-//blur
-double filter[][3][3] = {
-                        // Blur filter
-                        {{ 1, 1, 1},
-                         { 1, 1, 1},
-                         { 1, 1, 1}},
-
-                        // Sharpen filter
-                        {{ 0, -0.5, 0},
-                         { -0.5, 3, -0.5},
-                         { 0, -0.5, 0}},
-
-                        // Motion Blur filter
-                        {{ 1, 0, 0},
-                         { 0, 1, 0},
-                         { 0, 0, 1}}
-
-};
-
-int limit(int ); // Gives a boundary 0-255 for input value
-
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
+    char input_file[20];
+    int  filter_type;
+    int  resize_ratio;
+    int  option;
 
-    BMP* bmp;
-    BMP* bmp2;
-
-    UCHAR r, g, b;
-    UINT width, height;
-    UINT x,y;
-
-    int rtot, btot, gtot;
-    int norm_factor;
-    int F_TYPE ;
-
-    if( argc != 3 )
+    if(argc !=2 )
     {
-        printf("\n Usage: %s <input file> <filter type> ", argv[0]);
+        fprintf(stderr, "Usage: %s <input file> ", argv[0]);
     }
-    F_TYPE = atoi(argv[2]);
 
-    bmp  = BMP_ReadFile(argv[1]);
-    bmp2 = BMP_ReadFile(argv[1]);
-    BMP_CHECK_ERROR(stderr, -1); // Error reading bmp file
-
-    width  = BMP_GetWidth(bmp);
-    height = BMP_GetHeight(bmp);
-
-    printf("\n Width = %d, Height = %d", width, height);
-    printf("\n Filter applied : %d", F_TYPE);
-
-
-    for(int i=0; i<width; i++)
+    strcpy(input_file, argv[1]);
+    BMP* bmp= BMP_ReadFile(input_file);
+    do
     {
-        for(int j=0; j < height; j++)
+        printf("\nEnter your option :");
+        printf("\n1. Apply Filter");
+        printf("\n2. Resize (Nearest Neighbor)");
+        printf("\n3. Exit");
+        printf("\nEnter your option: ");
+        scanf("%d", &option);
+        switch(option)
         {
-            rtot = gtot = btot = 0;
-            norm_factor=FILTER_SIZE*FILTER_SIZE;
-            for(int k=-(FILTER_SIZE/2); k<=(FILTER_SIZE/2); k++)
-            {
-                for(int l=-(FILTER_SIZE/2);l<=(FILTER_SIZE/2); l++)
+            case 1:
+                do
                 {
-                    //Make sure the filter doesn't apply out of the window size
-                    if( ((i+k) < 0)      || ((j+l) < 0)      ||
-                        ((i+k) >= width) || ((j+l) >= height)||
-                        (filter[F_TYPE][k+(FILTER_SIZE/2)][l+(FILTER_SIZE/2)] == 0))
-                    {
-                        norm_factor--;
-                    }
-                    else
-                    {
-                        BMP_GetPixelRGB(bmp, (i+k) , (j+l) , &r , &g, &b );
-                        rtot += r * filter[F_TYPE][k+(FILTER_SIZE/2)][l+(FILTER_SIZE/2)];
-                        gtot += g * filter[F_TYPE][k+(FILTER_SIZE/2)][l+(FILTER_SIZE/2)];
-                        btot += b * filter[F_TYPE][k+(FILTER_SIZE/2)][l+(FILTER_SIZE/2)];
-                    }
-                }
-            }
-            if(F_TYPE == BLUR || F_TYPE == MOTION_BLUR)
-            {
-                if(norm_factor == 0)
+                    printf("\n What filter : ");
+                    printf("\n 1. Blur ");
+                    printf("\n 2. Sharpen " );
+                    printf("\n 3. Motion Blur");
+                    scanf("%d", &filter_type);
+                }while(filter_type < 1 && filter_type > 3);
+                apply_filter(input_file, --filter_type);
+                break;
+
+            case 2:
+                if(resize_image(input_file) != -1)
                 {
-                   // printf("\ni = %d, j=%d,:w", i,j);
-                    BMP_SetPixelRGB(bmp2, i, j, 0, 0, 0);
+                    printf("\nImage resized successfully");
                 }
                 else
                 {
-                    BMP_SetPixelRGB(bmp2, i, j, rtot/norm_factor, gtot/norm_factor, btot/norm_factor);
-                }
-            }
-            else
-            {
+                    fprintf(stderr, "Error occurred while resizing");
+                };
+                break;
 
-                BMP_SetPixelRGB(bmp2, i, j, limit(rtot), limit(gtot), limit(btot));
-            }
-
+            default:
+                printf("\n Incorrect option");
         }
-    }
-    BMP_WriteFile(bmp2, "output.bmp");
-    BMP_CHECK_ERROR(stderr, -2);
+    }while(option != 3);
 
-    BMP_Free(bmp);
-    BMP_Free(bmp2);
+
     return 0;
-
-}
-
-int limit(int n)
-{
-    if(n > 255)
-        return 255;
-    else if(n < 0)
-        return 0;
-    else
-        return n;
 }
