@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <math.h>
 #include <omp.h>
 
 
@@ -33,6 +32,10 @@ int resize_image( char *input_file)
 
     bmp2 = BMP_Create(new_width, new_height, BMP_GetDepth(bmp));
 
+    #pragma omp parallel for collapse(2)\
+                              num_threads(16)\
+                              default(shared)\
+                              private(r,g,b)
     for(UINT i=0; i<new_width ; i++)
     {
         for(UINT j=0; j<new_height; j++)

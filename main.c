@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "libs/qdbmp.h"
 #include "libs/qdbmp.c"
 #include "filter.c"

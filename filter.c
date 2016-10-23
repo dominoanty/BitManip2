@@ -36,11 +36,9 @@ double filter[][3][3] = {
 
 int limit(int ); // Gives a boundary 0-255 for input value
 
-int apply_filter(char *given_input_file, int filter_type)
+int apply_filter(char *input_file, int filter_type)
 {
 
-    char input_file[20];
-    strcpy(input_file, given_input_file);
     BMP* bmp;
     BMP* bmp2;
 
@@ -51,6 +49,9 @@ int apply_filter(char *given_input_file, int filter_type)
     int rtot, btot, gtot;
     int norm_factor;
     int F_TYPE ;
+
+    clock_t start, end;
+    double cpu_time_used;
 
 
     F_TYPE = filter_type;
@@ -65,13 +66,26 @@ int apply_filter(char *given_input_file, int filter_type)
     printf("\n Width = %lu , Height = %lu", width, height);
     printf("\n Filter applied : %d", F_TYPE);
 
+    start = clock();
 
+    #pragma omp parallel for default(shared) \
+                             collapse(2)     \
+                             num_threads(16)  \
+                             private(gtot,rtot,btot,norm_factor)
     for(int i=0; i<width; i++)
     {
         for(int j=0; j < height; j++)
         {
             rtot = gtot = btot = 0;
             norm_factor=FILTER_SIZE*FILTER_SIZE;
+
+            #pragma omp parallel for reduction(+:rtot), \
+                                     reduction(+:btot), \
+                                     reduction(+:gtot)  \
+                                     collapse(2)        \
+                                     default(shared)    \
+                                     num_threads(FILTER_SIZE)\
+                                     private(r,g,b)
             for(int k=-(FILTER_SIZE/2); k<=(FILTER_SIZE/2); k++)
             {
                 for(int l=-(FILTER_SIZE/2);l<=(FILTER_SIZE/2); l++)
@@ -112,6 +126,11 @@ int apply_filter(char *given_input_file, int filter_type)
 
         }
     }
+
+    end = clock();
+    cpu_time_used = ((double) ( end - start )) / CLOCKS_PER_SEC;
+    printf("\nThe time in performing this operation is %f", cpu_time_used);
+
     BMP_WriteFile(bmp2, "output.bmp");
     BMP_CHECK_ERROR(stderr, -2);
 
