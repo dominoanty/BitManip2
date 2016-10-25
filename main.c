@@ -5,6 +5,7 @@
 #include "libs/qdbmp.c"
 #include "filter.c"
 #include "resize.c"
+#include "resize2.c"
 
 int main(int argc, char *argv[])
 {
@@ -25,7 +26,8 @@ int main(int argc, char *argv[])
         printf("\nEnter your option :");
         printf("\n1. Apply Filter");
         printf("\n2. Resize (Nearest Neighbor)");
-        printf("\n3. Exit");
+        printf("\n3. Resize (Bilinear Interpolation");
+        printf("\n4. Exit");
         printf("\nEnter your option: ");
         scanf("%d", &option);
         switch(option)
@@ -53,10 +55,21 @@ int main(int argc, char *argv[])
                 };
                 break;
 
+            case 3:
+                if(li_resize_image(input_file) != -1)
+                {
+                    printf("\nImage resized successfully");
+                }
+                else
+                {
+                    fprintf(stderr, "Error occurred while resizing");
+                };
+                break;
+
             default:
                 printf("\n Incorrect option");
         }
-    }while(option != 3);
+    }while(option != 4);
 
 
     return 0;
