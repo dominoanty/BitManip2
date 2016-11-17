@@ -14,6 +14,9 @@ int resize_image( char *input_file)
 
     double x_ratio, y_ratio;
 
+    double start, end;
+    double cpu_time_used;
+
     printf("\nInput file %s" , input_file);
     bmp  = BMP_ReadFile(input_file);
     BMP_CHECK_ERROR(stderr, -1); // Error reading bmp file
@@ -32,10 +35,13 @@ int resize_image( char *input_file)
 
     bmp2 = BMP_Create(new_width, new_height, BMP_GetDepth(bmp));
 
+    start = omp_get_wtime();
+
     #pragma omp parallel for collapse(2)\
-                              num_threads(16)\
+                              num_threads(4)\
                               default(shared)\
-                              private(r,g,b)
+                              private(r,g,b) \
+                              schedule(static, 128)
     for(UINT i=0; i<new_width ; i++)
     {
         for(UINT j=0; j<new_height; j++)
@@ -44,6 +50,25 @@ int resize_image( char *input_file)
             BMP_SetPixelRGB( bmp2, i, j, r, g, b );
         }
     }
+
+    end = omp_get_wtime();
+    cpu_time_used = ((double) ( end - start )) ;
+    printf("\nThe time in performing this operation in parallel is %f", cpu_time_used);
+
+    start = omp_get_wtime();
+
+    for(UINT i=0; i<new_width ; i++)
+    {
+        for(UINT j=0; j<new_height; j++)
+        {
+            BMP_GetPixelRGB( bmp, (int)(i*x_ratio) , (int)(j*y_ratio), &r, &g, &b);
+            BMP_SetPixelRGB( bmp2, i, j, r, g, b );
+        }
+    }
+
+    end = omp_get_wtime();
+    cpu_time_used = ((double) ( end - start ))  ;
+    printf("\nThe time in performing this operation sequentially is %f", cpu_time_used);
 
     BMP_WriteFile(bmp2, "output2.bmp");
     BMP_Free(bmp);

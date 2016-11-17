@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 #include "libs/qdbmp.h"
 #include "libs/qdbmp.c"
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
                     printf("\n 1. Blur ");
                     printf("\n 2. Sharpen " );
                     printf("\n 3. Motion Blur");
+                    printf("\n 4. Gaussian Blur");
                     scanf("%d", &filter_type);
                 }while(filter_type < 1 && filter_type > 3);
                 apply_filter(input_file, --filter_type);

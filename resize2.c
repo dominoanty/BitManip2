@@ -18,6 +18,9 @@ int li_resize_image( char *input_file)
     double x_ratio, y_ratio;
     double x_diff, y_diff;
 
+    double start, end;
+    double cpu_time_used;
+
     printf("\nInput file %s" , input_file);
     bmp  = BMP_ReadFile(input_file);
     BMP_CHECK_ERROR(stderr, -1); // Error reading bmp file
@@ -37,6 +40,8 @@ int li_resize_image( char *input_file)
 
     bmp2 = BMP_Create(new_width, new_height, BMP_GetDepth(bmp));
 
+    start = omp_get_wtime();
+#pragma omp parallel for collapse(2) default(shared) private(x_diff, y_diff, r, g, b ) num_threads(4) schedule(static, 128)
     for(UINT i=0; i<new_width ; i++)
     {
         for(UINT j=0; j<new_height; j++)
@@ -61,6 +66,40 @@ int li_resize_image( char *input_file)
             BMP_SetPixelRGB( bmp2, i, j, r, g, b );
         }
     }
+
+    end = omp_get_wtime();
+    cpu_time_used = ((double) ( end - start )) ;
+    printf("\nThe time in performing this operation in parallel is %f", cpu_time_used);
+
+    start = omp_get_wtime();
+    for(UINT i=0; i<new_width ; i++)
+    {
+        for(UINT j=0; j<new_height; j++)
+        {
+            x_diff = (i * x_ratio) - (int)(i * x_ratio) ;
+            y_diff = (j * y_ratio) - (int)(j * y_ratio) ;
+
+            BMP_GetPixelRGB( bmp, (int)(i*x_ratio) , (int)(j*y_ratio), &r1, &g1, &b1);
+            BMP_GetPixelRGB( bmp, (int)(i*x_ratio) + 1 , (int)(j*y_ratio), &r2, &g2, &b2);
+            BMP_GetPixelRGB( bmp, (int)(i*x_ratio) , (int)(j*y_ratio) + 1, &r3, &g3, &b3);
+            BMP_GetPixelRGB( bmp, (int)(i*x_ratio) + 1 , (int)(j*y_ratio) + 1, &r4, &g4, &b4);
+
+            r = r1 * (1 - x_diff) * (1 - y_diff) + r2 * (x_diff) * (1 - y_diff) +
+                r3 * (1 - x_diff) * (y_diff)     + r4 * (x_diff) * (y_diff);
+
+            g = g1 * (1 - x_diff) * (1 - y_diff) + g2 * (x_diff) * (1 - y_diff) +
+                g3 * (1 - x_diff) * (y_diff)     + g4 * (x_diff) * (y_diff);
+
+            b = b1 * (1 - x_diff) * (1 - y_diff) + b2 * (x_diff) * (1 - y_diff) +
+                 b3 * (1 - x_diff) * (y_diff)     + b4 * (x_diff) * (y_diff);
+
+            BMP_SetPixelRGB( bmp2, i, j, r, g, b );
+        }
+    }
+
+    end = omp_get_wtime();
+    cpu_time_used = ((double) ( end - start )) ;
+    printf("\nThe time in performing this operation sequentially is %f", cpu_time_used);
 
     BMP_WriteFile(bmp2, "output3.bmp");
     BMP_Free(bmp);
